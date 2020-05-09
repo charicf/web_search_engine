@@ -102,12 +102,16 @@ def retrieve_similar_docs(weights, doc_lenghts, inverted_index, query_inv_index,
 	query_lenght = 0
 	#for query_inv_index
 
+	#pdb.set_trace()
 	for q_term, q_df_tf in query_inv_index.items():
+		if q_term not in inverted_index: continue
 		w = q_df_tf[1]['d0'] * math.log2(N/inverted_index[q_term][0])
 		query_lenght = query_lenght + w**2
 	query_lenght = math.sqrt(query_lenght)
 
 	for term, df_tf in query_inv_index.items():
+
+		if term not in inverted_index: continue
 
 		for doc, tf in inverted_index[term][1].items():
 
@@ -143,16 +147,44 @@ def get_docs(text_files_dir):
 	for filename in os.listdir(text_files_dir):
 		#if filename.endswith(".txt"):
 		with open(text_files_dir+filename, "r") as input_file:
-			vocabulary.append(input_file.read())
+			vocabulary.append(get_text_of_interest(input_file))
 
 	return vocabulary
 
-def run_IR_system(links, pages, query):
+def get_text_of_interest(file):
+
+	text = file.read()
+	title_re = re.compile('<TITLE>(.*)</TITLE>', re.DOTALL).search(text)
+	text_re = re.compile('<TEXT>(.*)</TEXT>', re.DOTALL).search(text)
+
+	text_oi = title_re.group(1) + text_re.group(1)
+
+	return text_oi
+
+def get_relevance_info(relevance_path):
+
+	relevance = [None]*10
+	if relevance_path[-1] != "\\" and not os.path.isfile(relevance_path): relevance_path = relevance_path + '\\'
+	with open(relevance_path,'r') as r:
+		for l in r:
+			if l:
+				x = l.split(' ')
+				if relevance[int(x[0])-1] == None:
+					relevance[int(x[0])-1] = ['d'+x[1].rstrip()]
+				else:
+					relevance[int(x[0])-1].append('d'+x[1].rstrip())
+			else:
+				continue
+	return relevance
+
+def run_IR_system(links, pages, query, relevance_path, n_top_docs):
 
 	N = len(pages)
 
 	tokenized_docs = tokenize_docs(pages)
 	inverted_index = index_docs(tokenized_docs, False)
+
+	tokenized_query = tokenize_docs(query)
 
 	#tokenized_query = tokenize_docs([query])
 	#query_inv_index = index_docs(tokenized_query, True)
@@ -160,13 +192,37 @@ def run_IR_system(links, pages, query):
 	weights, doc_lenghts = get_weithgs_and_lenghts(inverted_index, N)
 	#sorted_docs = retrieve_similar_docs(weights, doc_lenghts, inverted_index, query_inv_index, N)
 
-	for q in query:
-		tokenized_query = tokenize_docs([query])
-		query_inv_index = index_docs(tokenized_query, True)
+	avg_precision = 0
+	avg_recall = 0
+	relevance = get_relevance_info(relevance_path)
+
+	print("\nTop {} documents in rank list\n".format(n_top_docs))
+
+	for i, qu in enumerate(tokenized_query):
+		
+		query_inv_index = index_docs([qu], True)
 		sorted_docs = retrieve_similar_docs(weights, doc_lenghts, inverted_index, query_inv_index, N)
 
+		top_docs = sorted_docs[:n_top_docs]
+		#pdb.set_trace()
+		rel_docs_retrieved = len(set(top_docs) & set(relevance[i]))
+		rel_docs = len(relevance[i])
+		docs_ret = len(top_docs)
 
-	pdb.set_trace()
+		recall = rel_docs_retrieved/rel_docs
+		precision = rel_docs_retrieved/docs_ret
+
+		avg_precision += precision
+		avg_recall += recall
+
+
+		print('Query: {}	Pr: {}		Re: {}'.format(i+1, precision, recall))
+
+	print("Avg Precision: ", avg_precision/len(query))
+	print("Avg Recall: ", avg_recall/len(query))
+
+
+	#pdb.set_trace()
 	
 	return
 
@@ -187,4 +243,4 @@ pages =  get_docs(text_files_dir)
 queries = get_queries(query_path)
 links = ''
 
-run_IR_system(links, pages, query)
+run_IR_system(links, pages, queries, relevance_path, n_top_docs)
