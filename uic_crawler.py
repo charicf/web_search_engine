@@ -135,12 +135,12 @@ class UICCrawler:
 
 #'engineeringalumni.uic.edu/contact', 'uofi.uic.edu/sb/sec/1860547', 'admissions.uic.edu/graduate-professional', 'engineering.uic.edu/\n                                      https:/engineering.uic.edu/about/faculty/teaching-resources/online-teaching-essentials/\n                                  ']
 #deque(['http://engineering.uic.edu/\n                                      https:/go.uic.edu/COE-fund\n                                  ', 'http://engineering.uic.edu/\n                                      https:/today.uic.edu/coronavirus', 'https://engineering.uic.edu/news-stories/professors-haiti-work-brings-real-world-experience-to-students', 'https://engineering.uic.edu/news-stories/brent-stephens-receives-nsf-career-award-for-work-in-computer-science', 'https://engineering.uic.edu/news-stories/five-cme-student-awarded-asce-scholarships', 'http://fimweb.fim.uic.edu/Images/Maps/Visitor%20East%20Side.pdf', 'http://fimweb.fim.uic.edu/Images/Maps/Visitor%20West%20Side.pdf', 'http://fimweb.fim.uic.edu/Images/Maps/Accessibility%20East%20Side.pdf', 'http://fimweb.fim.uic.edu/Images/Maps/Accessibility%20West%20Side.pdf', 'http://maps.uic.edu/Maps/UIC_COM_Rockford_Campus_Map.pdf', 'http://maps.uic.edu/Maps/UIC_COM_Peoria_Campus_Map.pdf', 'http://peoria.medicine.uic.edu/about/visiting', 'http://rockford.medicine.uic.edu/about/visiting', 'https://cs.uic.edu/~brents', 'https://cs.uic.edu/~elena'
-	def main(self, start_url):
+	def run_crawler(self, start_url):
 
 		
 		self.urls_queue.append(self.canonicalize_url(start_url, False))
 
-		while len(self.urls_queue) > 0 and len(self.traversed_links) < 500:
+		while len(self.urls_queue) > 0 and len(self.traversed_links) < 5:
 
 			#time.sleep(1)
 			#url = 'http://engineering.uic.edu/\n                                      https:/today.uic.edu/coronavirus'
@@ -153,20 +153,3 @@ class UICCrawler:
 			if (page_text) and (page_text is not None): self.pages.append(page_text)
 
 		return self.traversed_links, self.pages
-
-
-
-# construct the argument parse and parse the arguments
-ap = argparse.ArgumentParser()
-ap.add_argument("-u", "--start_url", required = False, default = "https://www.cs.uic.edu/", help="URL from crawl starts")
-
-args = vars(ap.parse_args())
-start_url = args["start_url"]
-
-spider = UICCrawler()
-links, pages = spider.main(start_url)
-pdb.set_trace()
-#print(links, pages)
-
-
-
