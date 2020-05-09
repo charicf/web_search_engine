@@ -122,6 +122,31 @@ def retrieve_similar_docs(weights, doc_lenghts, inverted_index, query_inv_index,
 
 	return sorted_docs
 
+
+# Read queries file and returns the tokens for each query
+def get_queries(path):
+
+	if os.path.isfile(path):
+
+		text = open(path, "r").read().lower()
+		queries = [t.strip() for t in text.split(' .')]
+		queries = list(filter(None, queries)) # Removes any empty string in the list
+
+	return queries
+
+def get_docs(text_files_dir):	
+
+	vocabulary = []
+
+	
+	if text_files_dir[-1] != "\\": text_files_dir = text_files_dir + '\\'
+	for filename in os.listdir(text_files_dir):
+		#if filename.endswith(".txt"):
+		with open(text_files_dir+filename, "r") as input_file:
+			vocabulary.append(input_file.read())
+
+	return vocabulary
+
 def run_IR_system(links, pages, query):
 
 	N = len(pages)
@@ -129,12 +154,37 @@ def run_IR_system(links, pages, query):
 	tokenized_docs = tokenize_docs(pages)
 	inverted_index = index_docs(tokenized_docs, False)
 
-	tokenized_query = tokenize_docs([query])
-	query_inv_index = index_docs(tokenized_query, True)
+	#tokenized_query = tokenize_docs([query])
+	#query_inv_index = index_docs(tokenized_query, True)
 
 	weights, doc_lenghts = get_weithgs_and_lenghts(inverted_index, N)
-	sorted_docs = retrieve_similar_docs(weights, doc_lenghts, inverted_index, query_inv_index, N)
+	#sorted_docs = retrieve_similar_docs(weights, doc_lenghts, inverted_index, query_inv_index, N)
+
+	for q in query:
+		tokenized_query = tokenize_docs([query])
+		query_inv_index = index_docs(tokenized_query, True)
+		sorted_docs = retrieve_similar_docs(weights, doc_lenghts, inverted_index, query_inv_index, N)
+
 
 	pdb.set_trace()
 	
 	return
+
+# construct the argument parse and parse the arguments
+ap = argparse.ArgumentParser()
+ap.add_argument("-p", "--files_path", required = True, default = "cranfieldDocs", help="path to input documents")
+ap.add_argument("-q", "--query_path", required = True, default = "queries.txt", help="path to the query file")
+ap.add_argument("-r", "--relevance_path", required = True, default = "relevance.txt", help="path to the relevance file")
+ap.add_argument("-t", "--top_documents", required = True, default = 500, help="top t documents to take into account")
+
+args = vars(ap.parse_args())
+text_files_dir = args["files_path"]
+query_path = args["query_path"]
+relevance_path = args["relevance_path"]
+n_top_docs = int(args["top_documents"])
+
+pages =  get_docs(text_files_dir)
+queries = get_queries(query_path)
+links = ''
+
+run_IR_system(links, pages, query)
