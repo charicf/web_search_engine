@@ -11,6 +11,6 @@ start_url = args["start_url"]
 spider = UICCrawler()
 links, pages = spider.run_crawler(start_url)
 query = 'Computer science master of science program'
-run_IR_system(links, pages, query)
-#pdb.set_trace()
+sorted_pages = run_IR_system(links, pages, [query])
+pdb.set_trace()
 #print(links, pages)	

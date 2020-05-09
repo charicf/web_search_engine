@@ -29,7 +29,6 @@ def index_docs(tokenized_docs):
 
 	docs_index = {}
 
-	#pdb.set_trace()
 	for doc_id, doc in enumerate(tokenized_docs):
 		doc_id = doc_id + 1
 
@@ -52,6 +51,9 @@ def index_docs(tokenized_docs):
 
 	return docs_index
 
+# Indexing the queries is different than docs. The frequencies of the query terms are different depending on the document. Thus, for each term there
+# is a document frequency (frequency of term in the doc not in query) if it appears in that document.  
+#Ex: {'term1': [1, {'d1': 1}], 'term2': [1, {'d5': 2}]}
 def index_query(tokenized_docs, tokenized_query):
 
 	docs_index = {}
@@ -64,7 +66,6 @@ def index_query(tokenized_docs, tokenized_query):
 		for term in tokenized_query:
 			if term in doc:
 				if term in docs_index:
-					#pdb.set_trace()
 					docs_index[term][1]["d"+str(doc_id)] = terms_freq[term]
 					docs_index[term][0] = len(docs_index[term][1])
 				else:
@@ -78,7 +79,7 @@ def index_query(tokenized_docs, tokenized_query):
 def get_weithgs_and_lenghts(inverted_index, N):
 
 	doc_lenghts = {}
-	tf_idf = {}
+	#tf_idf = {}
 
 	for i in range(N):
 		doc = "d"+str(i+1)
@@ -88,21 +89,19 @@ def get_weithgs_and_lenghts(inverted_index, N):
 		for term, l in inverted_index.items():
 			try:
 				weight = (inverted_index[term][1][doc]) * (math.log2(N/inverted_index[term][0]))
-				#tf_idf2[doc, term] = weight
 				doc_lenghts[doc] = doc_lenghts[doc] + weight**2
-				try:
-					tf_idf[doc][term] = weight
-				except:
-					tf_idf[doc] = {term: weight}
+				# try:
+				# 	tf_idf[doc][term] = weight
+				# except:
+				# 	tf_idf[doc] = {term: weight}
 			except:
 				continue
 		doc_lenghts[doc] = math.sqrt(doc_lenghts[doc])
 
-	#pdb.set_trace()
-	return tf_idf, doc_lenghts
+	return doc_lenghts #,tf_idf
 
-# Performs Cosine Similarity and retrieves ranked docs
-def retrieve_similar_docs(weights, doc_lenghts, inverted_index, query_inv_index, q_lenghts, N):
+# Performs Cosine Similarity and retrieves ranked docs. For each document there are different query weights.
+def retrieve_similar_docs(doc_lenghts, inverted_index, query_inv_index, q_lenghts, N):
 
 	cos_sim = {}
 	#query_lenght = 0
@@ -125,10 +124,12 @@ def retrieve_similar_docs(weights, doc_lenghts, inverted_index, query_inv_index,
 		for doc, tf in inverted_index[term][1].items():
 
 			if doc in cos_sim:
-				dot_p = inverted_index[term][1][doc] * df_tf[1][doc] * (math.log2(N/inverted_index[term][0]))**2
+				if q_lenghts[doc] == 0: q_lenghts[doc] = 1
+				dot_p = inverted_index[term][1][doc] * (math.log2(N/inverted_index[term][0])) * df_tf[1][doc] * (math.log2(N/query_inv_index[term][0]))
 				cos_sim[doc] += dot_p/math.sqrt(doc_lenghts[doc]*q_lenghts[doc])
 			else:
-				dot_p = inverted_index[term][1][doc] * df_tf[1][doc] * (math.log2(N/inverted_index[term][0]))**2
+				if q_lenghts[doc] == 0: q_lenghts[doc] = 1
+				dot_p = inverted_index[term][1][doc] * (math.log2(N/inverted_index[term][0])) * df_tf[1][doc] * (math.log2(N/query_inv_index[term][0]))
 				cos_sim[doc] = dot_p/math.sqrt(doc_lenghts[doc]*q_lenghts[doc])
 
 	sorted_docs = [k for k, v in sorted(cos_sim.items(), reverse=True, key=lambda item: item[1])]
@@ -136,12 +137,14 @@ def retrieve_similar_docs(weights, doc_lenghts, inverted_index, query_inv_index,
 	return sorted_docs
 
 
+####  Benchmark VSM tests  #####
+
 # Read queries file and returns the tokens for each query
 def get_queries(path):
 
 	if os.path.isfile(path):
 
-		text = open(path, "r").read().lower()
+		text = open(path, "r", encoding="utf8").read().lower()
 		queries = [t.strip() for t in text.split(' .')]
 		queries = list(filter(None, queries)) # Removes any empty string in the list
 
@@ -155,8 +158,9 @@ def get_docs(text_files_dir):
 	if text_files_dir[-1] != "\\": text_files_dir = text_files_dir + '\\'
 	for filename in os.listdir(text_files_dir):
 		#if filename.endswith(".txt"):
-		with open(text_files_dir+filename, "r") as input_file:
-			vocabulary.append(get_text_of_interest(input_file))
+		with open(text_files_dir+filename, "r", encoding="utf8") as input_file:
+			#vocabulary.append(get_text_of_interest(input_file))
+			vocabulary.append(input_file.read())
 
 	return vocabulary
 
@@ -186,77 +190,88 @@ def get_relevance_info(relevance_path):
 				continue
 	return relevance
 
-def run_IR_system(links, pages, query, relevance_path, n_top_docs):
+def precision_recall_tests(sorted_docs, n_top_docs, i, relevance):
+
+	top_docs = sorted_docs[:n_top_docs]
+	rel_docs_retrieved = len(set(top_docs) & set(relevance[i]))
+	rel_docs = len(relevance[i])
+	docs_ret = len(top_docs)
+
+	recall = rel_docs_retrieved/rel_docs
+	precision = rel_docs_retrieved/docs_ret
+
+	print('Query: {}	Pr: {}		Re: {}'.format(i+1, precision, recall))
+
+	return precision, recall
+
+
+
+def run_IR_system(links, pages, queries, relevance_path='', n_top_docs='', test = False):
 
 	N = len(pages)
+	ranked_docs = []
 
 	tokenized_docs = tokenize_docs(pages)
 	inverted_index = index_docs(tokenized_docs)
 
-	tokenized_query = tokenize_docs(query)
+	tokenized_queries = tokenize_docs(queries)
 
-	#tokenized_query = tokenize_docs([query])
-	#query_inv_index = index_docs(tokenized_query, True)
+	doc_lenghts = get_weithgs_and_lenghts(inverted_index, N)
 
-	weights, doc_lenghts = get_weithgs_and_lenghts(inverted_index, N)
-	#sorted_docs = retrieve_similar_docs(weights, doc_lenghts, inverted_index, query_inv_index, N)
+	if not test:
+		for i, query in enumerate(tokenized_queries):
+			
+			query_inv_index = index_query(tokenized_docs, query)
+			q_lenghts = get_weithgs_and_lenghts(query_inv_index, N) # As there are different weights of query for each document, lenghts are different too
+			#pdb.set_trace()
+			sorted_docs = retrieve_similar_docs(doc_lenghts, inverted_index, query_inv_index, q_lenghts, N)
 
-	# tem = {}
-	# for doc, terms in weights.items():
-	# 	for i in sorted (weights[doc].keys()):
-	# 		tem[i] = inverted_index[i]
-	# 	pdb.set_trace()
+			ranked_docs.append(sorted_docs)
 
-	avg_precision = 0
-	avg_recall = 0
-	relevance = get_relevance_info(relevance_path)
+		return ranked_docs
 
-	print("\nTop {} documents in rank list\n".format(n_top_docs))
+	else:
 
-	for i, qu in enumerate(tokenized_query):
-		
-		query_inv_index = index_query(tokenized_docs, qu)
-		q_weights, q_lenghts = get_weithgs_and_lenghts(query_inv_index, N)
-		#pdb.set_trace()
-		sorted_docs = retrieve_similar_docs(weights, doc_lenghts, inverted_index, query_inv_index, q_lenghts, N)
+		avg_precision = 0
+		avg_recall = 0
+		relevance = get_relevance_info(relevance_path)
 
-		top_docs = sorted_docs[:n_top_docs]
-		rel_docs_retrieved = len(set(top_docs) & set(relevance[i]))
-		rel_docs = len(relevance[i])
-		docs_ret = len(top_docs)
+		print("\nTop {} documents in rank list\n".format(n_top_docs))
 
-		recall = rel_docs_retrieved/rel_docs
-		precision = rel_docs_retrieved/docs_ret
+		for i, query in enumerate(tokenized_queries):
+			
+			query_inv_index = index_query(tokenized_docs, query)
+			q_lenghts = get_weithgs_and_lenghts(query_inv_index, N) # As there are different weights of query for each document, lenghts are different too
+			sorted_docs = retrieve_similar_docs(doc_lenghts, inverted_index, query_inv_index, q_lenghts, N)
+			#pdb.set_trace()
 
-		avg_precision += precision
-		avg_recall += recall
+			precision, recall = precision_recall_tests(sorted_docs, n_top_docs, i, relevance)
+
+			avg_precision += precision
+			avg_recall += recall
 
 
-		print('Query: {}	Pr: {}		Re: {}'.format(i+1, precision, recall))
-
-	print("Avg Precision: ", avg_precision/len(query))
-	print("Avg Recall: ", avg_recall/len(query))
-
-
-	#pdb.set_trace()
-	
-	return
+		print("Avg Precision: ", avg_precision/len(queries))
+		print("Avg Recall: ", avg_recall/len(queries))
 
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
-ap.add_argument("-p", "--files_path", required = True, default = "cranfieldDocs", help="path to input documents")
-ap.add_argument("-q", "--query_path", required = True, default = "queries.txt", help="path to the query file")
-ap.add_argument("-r", "--relevance_path", required = True, default = "relevance.txt", help="path to the relevance file")
-ap.add_argument("-t", "--top_documents", required = True, default = 500, help="top t documents to take into account")
+ap.add_argument("-p", "--files_path", required = False, default = "cranfieldDocs", help="path to input documents")
+ap.add_argument("-q", "--query_path", required = False, default = "queries.txt", help="path to the query file")
+ap.add_argument("-r", "--relevance_path", required = False, default = "relevance.txt", help="path to the relevance file")
+ap.add_argument("-td", "--top_documents", required = False, default = 500, help="top t documents to take into account")
+ap.add_argument("-t", "--testing_mode", required = False, default = 0, help="Testing mode. True or False")
 
 args = vars(ap.parse_args())
-text_files_dir = args["files_path"]
-query_path = args["query_path"]
-relevance_path = args["relevance_path"]
-n_top_docs = int(args["top_documents"])
+testing_mode = int(args["testing_mode"])
+if testing_mode==1:
+	text_files_dir = args["files_path"]
+	query_path = args["query_path"]
+	relevance_path = args["relevance_path"]
+	n_top_docs = int(args["top_documents"])
 
-pages =  get_docs(text_files_dir)
-queries = get_queries(query_path)
-links = ''
+	pages =  get_docs(text_files_dir)
+	queries = get_queries(query_path)
+	links = ''
 
-run_IR_system(links, pages, queries, relevance_path, n_top_docs)
+	run_IR_system(links, pages, queries, relevance_path, n_top_docs, True)
