@@ -11,6 +11,7 @@ import time
 from socket import timeout
 import ssl
 import http.client
+import csv
 
 class UICCrawler:
 
@@ -71,12 +72,16 @@ class UICCrawler:
 		else:
 			return
 
-		if len(self.traversed_links) == 474: pdb.set_trace()
-
 		try:
+			#pdb.set_trace()
 			req = urllib.request.Request(current_url)
 			req.add_header('User-Agent', 'Mozilla/5.0')
 			url_init = urllib.request.urlopen(req, timeout=10)
+			content_type = url_init.headers.get('content-type')
+			if content_type != 'text/html; charset=UTF-8' and content_type != 'text/html; charset=utf-8':
+				print(content_type)
+				self.traversed_links.pop()
+				return
 			#url_init = urllib.request.urlopen(url, timeout=10)
 			bsoup = BeautifulSoup(url_init.read(), features="lxml")
 			#pdb.set_trace()
@@ -131,16 +136,27 @@ class UICCrawler:
 			print(current_url, 'timed out')
 			return
 
+		except:
+			self.traversed_links.pop()
+			print(current_url, 'unlnown error')
+			return
+
 		return text
 
 #'engineeringalumni.uic.edu/contact', 'uofi.uic.edu/sb/sec/1860547', 'admissions.uic.edu/graduate-professional', 'engineering.uic.edu/\n                                      https:/engineering.uic.edu/about/faculty/teaching-resources/online-teaching-essentials/\n                                  ']
 #deque(['http://engineering.uic.edu/\n                                      https:/go.uic.edu/COE-fund\n                                  ', 'http://engineering.uic.edu/\n                                      https:/today.uic.edu/coronavirus', 'https://engineering.uic.edu/news-stories/professors-haiti-work-brings-real-world-experience-to-students', 'https://engineering.uic.edu/news-stories/brent-stephens-receives-nsf-career-award-for-work-in-computer-science', 'https://engineering.uic.edu/news-stories/five-cme-student-awarded-asce-scholarships', 'http://fimweb.fim.uic.edu/Images/Maps/Visitor%20East%20Side.pdf', 'http://fimweb.fim.uic.edu/Images/Maps/Visitor%20West%20Side.pdf', 'http://fimweb.fim.uic.edu/Images/Maps/Accessibility%20East%20Side.pdf', 'http://fimweb.fim.uic.edu/Images/Maps/Accessibility%20West%20Side.pdf', 'http://maps.uic.edu/Maps/UIC_COM_Rockford_Campus_Map.pdf', 'http://maps.uic.edu/Maps/UIC_COM_Peoria_Campus_Map.pdf', 'http://peoria.medicine.uic.edu/about/visiting', 'http://rockford.medicine.uic.edu/about/visiting', 'https://cs.uic.edu/~brents', 'https://cs.uic.edu/~elena'
-	def run_crawler(self, start_url):
+	def save_crawler_results(self, links, pages, id):
 
-		
+		with open('crawled_pages/' + str(id) + '.csv', 'w', encoding='utf-8', newline='') as f:
+			writer = csv.writer(f)
+			writer.writerows(zip([links], [pages]))
+
+	def run_crawler(self, start_url, number_pages):
+
+		counter = 0
 		self.urls_queue.append(self.canonicalize_url(start_url, False))
 
-		while len(self.urls_queue) > 0 and len(self.traversed_links) < 5:
+		while len(self.urls_queue) > 0 and counter < number_pages:
 
 			#time.sleep(1)
 			#url = 'http://engineering.uic.edu/\n                                      https:/today.uic.edu/coronavirus'
@@ -150,6 +166,10 @@ class UICCrawler:
 			current_url = self.urls_queue.popleft()
 			page_text = self.crawl(current_url)
 			
-			if (page_text) and (page_text is not None): self.pages.append(page_text)
+			if (page_text) and (page_text is not None): 
+
+				self.pages.append(page_text)
+				self.save_crawler_results(current_url, page_text, counter)
+				counter += 1
 
 		return self.traversed_links, self.pages

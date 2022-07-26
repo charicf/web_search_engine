@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+#Folders
+crawled_pages_*/
+
+#CSVs
+*.csv

@@ -1,8 +1,9 @@
-from preprocessing_assg1 import *
+from preprocessing import *
 import re
 import math
 import pdb
 from nltk.probability import FreqDist
+import csv
 
 def tokenize_docs(documents):
 
@@ -30,7 +31,6 @@ def index_docs(tokenized_docs):
 	docs_index = {}
 
 	for doc_id, doc in enumerate(tokenized_docs):
-		doc_id = doc_id + 1
 
 		try:
 			most_freq_term = FreqDist(doc).most_common(1)[0][1]
@@ -59,7 +59,6 @@ def index_query(tokenized_docs, tokenized_query):
 	docs_index = {}
 
 	for doc_id, doc in enumerate(tokenized_docs):
-		doc_id = doc_id + 1
 
 		terms_freq = FreqDist(doc)
 
@@ -82,7 +81,7 @@ def get_weithgs_and_lenghts(inverted_index, N):
 	#tf_idf = {}
 
 	for i in range(N):
-		doc = "d"+str(i+1)
+		doc = "d"+str(i)
 		doc_lenghts[doc] = 0
 
 		
@@ -104,15 +103,6 @@ def get_weithgs_and_lenghts(inverted_index, N):
 def retrieve_similar_docs(doc_lenghts, inverted_index, query_inv_index, q_lenghts, N):
 
 	cos_sim = {}
-	#query_lenght = 0
-	#for query_inv_index
-
-	#pdb.set_trace()
-	# for q_term, q_df_tf in query_inv_index.items():
-	# 	if q_term not in inverted_index: continue
-	# 	w = q_df_tf[1]['d1'] * math.log2(N/inverted_index[q_term][0])
-	# 	query_lenght = query_lenght + w**2
-	# query_lenght = math.sqrt(query_lenght)
 
 	for term, df_tf in query_inv_index.items():
 
@@ -120,7 +110,6 @@ def retrieve_similar_docs(doc_lenghts, inverted_index, query_inv_index, q_lenght
 			print('term not in doccs', term)
 			continue
 
-		#pdb.set_trace()
 		for doc, tf in inverted_index[term][1].items():
 
 			if doc in cos_sim:
@@ -164,6 +153,26 @@ def get_docs(text_files_dir):
 
 	return vocabulary
 
+def get_csv_data(text_files_dir):
+
+	vocabulary = []
+	links = []
+
+	
+	if text_files_dir[-1] != "\\": text_files_dir = text_files_dir + '\\'
+	for filename in sorted(os.listdir(text_files_dir), key=lambda f: int(f.split('.')[0])):
+		#if filename.endswith(".txt"):
+		with open(text_files_dir+filename, "r", encoding="utf8", newline='') as input_file:
+			#vocabulary.append(get_text_of_interest(input_file))
+			reader = csv.reader(input_file)
+			data = list(reader)
+
+		for pair in data:
+			links.append(pair[0])
+			vocabulary.append(pair[1])
+
+	return links, vocabulary
+
 def get_text_of_interest(file):
 
 	text = file.read()
@@ -206,7 +215,7 @@ def precision_recall_tests(sorted_docs, n_top_docs, i, relevance):
 
 
 
-def run_IR_system(links, pages, queries, relevance_path='', n_top_docs='', test = False):
+def run_IR_system(pages, queries, relevance_path='', n_top_docs='', test = False):
 
 	N = len(pages)
 	ranked_docs = []
@@ -270,8 +279,9 @@ if testing_mode==1:
 	relevance_path = args["relevance_path"]
 	n_top_docs = int(args["top_documents"])
 
-	pages =  get_docs(text_files_dir)
+	#pages =  get_docs(text_files_dir)
+	links, pages = get_csv_data(text_files_dir)
+	#pdb.set_trace()
 	queries = get_queries(query_path)
-	links = ''
 
-	run_IR_system(links, pages, queries, relevance_path, n_top_docs, True)
+	run_IR_system(pages, queries, relevance_path, n_top_docs, True)
