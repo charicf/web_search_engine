@@ -12,6 +12,7 @@ from socket import timeout
 import ssl
 import http.client
 import csv
+import os
 
 class UICCrawler:
 
@@ -146,6 +147,12 @@ class UICCrawler:
 #'engineeringalumni.uic.edu/contact', 'uofi.uic.edu/sb/sec/1860547', 'admissions.uic.edu/graduate-professional', 'engineering.uic.edu/\n                                      https:/engineering.uic.edu/about/faculty/teaching-resources/online-teaching-essentials/\n                                  ']
 #deque(['http://engineering.uic.edu/\n                                      https:/go.uic.edu/COE-fund\n                                  ', 'http://engineering.uic.edu/\n                                      https:/today.uic.edu/coronavirus', 'https://engineering.uic.edu/news-stories/professors-haiti-work-brings-real-world-experience-to-students', 'https://engineering.uic.edu/news-stories/brent-stephens-receives-nsf-career-award-for-work-in-computer-science', 'https://engineering.uic.edu/news-stories/five-cme-student-awarded-asce-scholarships', 'http://fimweb.fim.uic.edu/Images/Maps/Visitor%20East%20Side.pdf', 'http://fimweb.fim.uic.edu/Images/Maps/Visitor%20West%20Side.pdf', 'http://fimweb.fim.uic.edu/Images/Maps/Accessibility%20East%20Side.pdf', 'http://fimweb.fim.uic.edu/Images/Maps/Accessibility%20West%20Side.pdf', 'http://maps.uic.edu/Maps/UIC_COM_Rockford_Campus_Map.pdf', 'http://maps.uic.edu/Maps/UIC_COM_Peoria_Campus_Map.pdf', 'http://peoria.medicine.uic.edu/about/visiting', 'http://rockford.medicine.uic.edu/about/visiting', 'https://cs.uic.edu/~brents', 'https://cs.uic.edu/~elena'
 	def save_crawler_results(self, links, pages, id):
+
+		if not os.path.exists("crawled_pages"):
+
+			# if the demo_folder directory is not present 
+			# then create it.
+			os.makedirs("crawled_pages")
 
 		with open('crawled_pages/' + str(id) + '.csv', 'w', encoding='utf-8', newline='') as f:
 			writer = csv.writer(f)
